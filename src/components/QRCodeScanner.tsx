@@ -23,6 +23,7 @@ const QRCodeScanner = ({ width, height, callback }: QRCodeScannerProps) => {
     const [isLoading, setLoading] = useState<boolean>(true);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const isDestroyed = useRef<boolean>(false);
 
     useEffect(() => {
         let stream: MediaStream | null = null;
@@ -42,8 +43,8 @@ const QRCodeScanner = ({ width, height, callback }: QRCodeScannerProps) => {
         openCamera();
 
         return () => {
-            // TODO カメラ停止しない
             if (stream) {
+                isDestroyed.current = true;
                 stream.getVideoTracks()[0].stop();
                 stream.getTracks().forEach((track) => track.stop());
             }
@@ -66,6 +67,9 @@ const QRCodeScanner = ({ width, height, callback }: QRCodeScannerProps) => {
     };
 
     const tick = () => {
+        if (isDestroyed.current) {
+            return;
+        }
         const canvas = canvasRef?.current;
         const video = videoRef?.current;
         if (!canvas || !video) {

@@ -7,38 +7,58 @@ import CodeList from "./components/CodeList";
 function App() {
     const lastCode = useRef<string>("");
     const [detectCode, setDetectCode] = useState<string>("");
-    const [savingMode, setSavingMode] = useState<boolean>(true);
+    const [savingMode, setSavingMode] = useState<boolean>(false);
     const divRef = useRef<HTMLDivElement>(null);
-    const [codeHistory, setCodeHistory] = useState<string[]>([
-        "aa",
-        "bb",
-        "cc",
-        "aa",
-        "bb",
-        "cc",
-        "aa",
-        "bb",
-        "cc",
-        "aa",
-        "bb",
-        "cc",
-    ]);
+    const [codeHistory, setCodeHistory] = useState<string[]>([]);
+    const timerId = useRef<number | null>(null);
 
     // 画面のアスペクト比を保持したプレビューのサイズを計算
-    const previewWidth = Math.round(window.innerWidth * 0.6);
-    const previewHeight = Math.round(
+    let previewWidth = Math.round(window.innerWidth * 0.6);
+    let previewHeight = Math.round(
         (VIDEO_SIZE.width / VIDEO_SIZE.height) * previewWidth
     );
+    // 画面が狭い端末用微調整
+    if (previewHeight > window.innerHeight / 2 - 50) {
+        previewHeight = Math.round(window.innerHeight / 2 - 50);
+        previewWidth = Math.round(
+            (VIDEO_SIZE.height / VIDEO_SIZE.width) * previewHeight
+        );
+    }
 
     // バーコード検出時のコールバック関数
     const detectionCode = (data: string) => {
-        if (!data || data === lastCode.current) {
+        if (!data) {
             return;
         }
+        // タイマーセット
+        stopTimer();
+        startTimer();
+        if (data === lastCode.current) {
+            return;
+        }
+
         lastCode.current = data;
         setDetectCode(data);
         setCodeHistory((prev) => [data, ...prev]);
         divRef.current?.scrollTo(0, 0);
+    };
+
+    const startTimer = () => {
+        timerId.current = setTimeout(() => {
+            lastCode.current = "";
+            setDetectCode("");
+        }, 3000);
+    };
+
+    const stopTimer = () => {
+        if (timerId.current) {
+            clearTimeout(timerId.current);
+            timerId.current = null;
+        }
+    };
+
+    const clickHandler = () => {
+        setCodeHistory([]);
     };
 
     return (
@@ -73,12 +93,25 @@ function App() {
                         />
                     </label>
                 </div>
-                <div className="border-2 border-slate-200 w-4/5 h-20 mt-4 p-3 break-all rounded bg-slate-50">
+                <div
+                    className={
+                        "border-2 border-slate-200 w-4/5 h-16 max-h-16 mt-4 p-1 break-all rounded overflow-auto " +
+                        (detectCode ? "bg-pink-50" : "bg-slate-50")
+                    }
+                >
                     {detectCode}
                 </div>
-                <div className="mt-3">履歴</div>
+                <div className="mt-4 w-4/5 flex flex-row justify-center">
+                    <div className="">履歴</div>
+                    <button
+                        className="fixed right-4 -mt-2 p-0 pl-2 pr-2 border-2 border-neutral-400"
+                        onClick={clickHandler}
+                    >
+                        削除
+                    </button>
+                </div>
                 <div
-                    className="w-4/5 flex-1 border-2 border-slate-200 p-2 overflow-auto"
+                    className="w-4/5 flex-1 border-2 border-slate-200 overflow-auto"
                     ref={divRef}
                 >
                     <CodeList codes={codeHistory} />

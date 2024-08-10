@@ -1,16 +1,18 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import QRCodeScanner from "./components/QRCodeScanner";
 import { VIDEO_SIZE } from "./constants";
 import CodeList from "./components/CodeList";
+import LargeButton from "./components/LargeButton";
 
 function App() {
-    const lastCode = useRef<string>("");
-    const [detectCode, setDetectCode] = useState<string>("");
     const [savingMode, setSavingMode] = useState<boolean>(false);
+    const [isScanning, setScanning] = useState<boolean>(false);
     const divRef = useRef<HTMLDivElement>(null);
     const [codeHistory, setCodeHistory] = useState<string[]>([]);
     const timerId = useRef<number | null>(null);
+    const codeHistoryRef = useRef<string[]>(codeHistory);
+    const [cameraResume, setCameraResume] = useState<boolean>(false);
 
     // 画面のアスペクト比を保持したプレビューのサイズを計算
     let previewWidth = Math.round(window.innerWidth * 0.6);
@@ -25,40 +27,54 @@ function App() {
         );
     }
 
+    useEffect(() => {
+        codeHistoryRef.current = codeHistory;
+    }, [codeHistory]);
+
     // バーコード検出時のコールバック関数
     const detectionCode = (data: string) => {
-        if (!data) {
-            return;
+        setScanning(false);
+        if (codeHistoryRef.current.includes(data)) {
+            alert("同じコードが既に登録されています");
+        } else {
+            setCodeHistory((prev) => [data, ...prev]);
+            divRef.current?.scrollTo(0, 0);
         }
-        // タイマーセット
-        stopTimer();
         startTimer();
-        if (data === lastCode.current) {
-            return;
-        }
-
-        lastCode.current = data;
-        setDetectCode(data);
-        setCodeHistory((prev) => [data, ...prev]);
-        divRef.current?.scrollTo(0, 0);
     };
 
     const startTimer = () => {
         timerId.current = setTimeout(() => {
-            lastCode.current = "";
-            setDetectCode("");
-        }, 3000);
+            setCameraResume(true);
+            timerId.current = null;
+        }, 1000);
     };
 
     const stopTimer = () => {
         if (timerId.current) {
             clearTimeout(timerId.current);
             timerId.current = null;
+            // カメラ再開
+            setCameraResume(true);
         }
     };
 
     const clickHandler = () => {
         setCodeHistory([]);
+    };
+
+    const scanHandler = () => {
+        if (!isScanning && timerId.current) {
+            stopTimer();
+        }
+        setScanning(!isScanning);
+    };
+
+    const changeSavingMode = () => {
+        if (!savingMode && isScanning) {
+            setScanning(false);
+        }
+        setSavingMode(!savingMode);
     };
 
     return (
@@ -77,7 +93,10 @@ function App() {
                         <QRCodeScanner
                             width={previewWidth}
                             height={previewHeight}
+                            disabled={!isScanning}
                             callback={detectionCode}
+                            resume={cameraResume}
+                            resumeCallback={() => setCameraResume(false)}
                         />
                     )}
                 </div>
@@ -89,22 +108,19 @@ function App() {
                             type="checkbox"
                             role="switch"
                             checked={savingMode}
-                            onChange={() => setSavingMode(!savingMode)}
+                            onChange={changeSavingMode}
                         />
                     </label>
                 </div>
-                <div
-                    className={
-                        "border-2 border-slate-200 w-4/5 h-16 max-h-16 mt-4 p-1 break-all rounded overflow-auto " +
-                        (detectCode ? "bg-pink-50" : "bg-slate-50")
-                    }
-                >
-                    {detectCode}
-                </div>
+                <LargeButton
+                    label={isScanning ? "スキャン中…" : "スキャン"}
+                    onClick={scanHandler}
+                    disabled={savingMode}
+                />
                 <div className="mt-4 w-4/5 flex flex-row justify-center">
                     <div className="">履歴</div>
                     <button
-                        className="fixed right-4 -mt-2 p-0 pl-2 pr-2 border-2 border-neutral-400"
+                        className="fixed right-4 -mt-2 p-0 pl-2 pr-2 border-2 border-neutral-400 bg-red-50 text-black"
                         onClick={clickHandler}
                     >
                         削除

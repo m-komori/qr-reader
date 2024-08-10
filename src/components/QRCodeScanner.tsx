@@ -16,14 +16,40 @@ const CAMERA_SETTINGS: MediaStreamConstraints = {
 type QRCodeScannerProps = {
     width: number;
     height: number;
+    disabled: boolean;
     callback: (data: string) => void;
+    resume: boolean;
+    resumeCallback: () => void;
 };
 
-const QRCodeScanner = ({ width, height, callback }: QRCodeScannerProps) => {
+const QRCodeScanner = ({
+    width,
+    height,
+    disabled,
+    callback,
+    resume,
+    resumeCallback,
+}: QRCodeScannerProps) => {
     const [isLoading, setLoading] = useState<boolean>(true);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDestroyed = useRef<boolean>(false);
+    const isSuspended = useRef<boolean>(false);
+
+    // tick関数内で取得できるようにuseRefで入れ替え
+    const disabledRed = useRef<boolean>(disabled);
+    useEffect(() => {
+        disabledRed.current = disabled;
+    }, [disabled]);
+
+    useEffect(() => {
+        console.log("resume", resume, isSuspended.current);
+        if (resume && isSuspended.current) {
+            // 画面再開
+            isSuspended.current = false;
+            resumeCallback();
+        }
+    }, [resume, resumeCallback]);
 
     useEffect(() => {
         let stream: MediaStream | null = null;
@@ -77,7 +103,10 @@ const QRCodeScanner = ({ width, height, callback }: QRCodeScannerProps) => {
         }
         const context = canvas.getContext("2d")!;
 
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        if (
+            video.readyState === video.HAVE_ENOUGH_DATA &&
+            !isSuspended.current
+        ) {
             canvas.hidden = false;
             setLoading(false);
 
@@ -90,35 +119,40 @@ const QRCodeScanner = ({ width, height, callback }: QRCodeScannerProps) => {
                 canvas.width,
                 canvas.height
             );
-            // QRコード判定
-            const code = jsQR(
-                imageData.data,
-                imageData.width,
-                imageData.height,
-                {
-                    inversionAttempts: "dontInvert",
+            // 有効な時だけQR判定
+            if (!disabledRed.current) {
+                // QRコード判定
+                const code = jsQR(
+                    imageData.data,
+                    imageData.width,
+                    imageData.height,
+                    {
+                        inversionAttempts: "dontInvert",
+                    }
+                );
+                if (code && code.data) {
+                    // QRコードを検出したら枠線描画
+                    drawLine(
+                        code.location.topLeftCorner,
+                        code.location.topRightCorner
+                    );
+                    drawLine(
+                        code.location.topRightCorner,
+                        code.location.bottomRightCorner
+                    );
+                    drawLine(
+                        code.location.bottomRightCorner,
+                        code.location.bottomLeftCorner
+                    );
+                    drawLine(
+                        code.location.bottomLeftCorner,
+                        code.location.topLeftCorner
+                    );
+                    // callback
+                    callback(code.data);
+                    // QRコードを検出したら画面停止
+                    isSuspended.current = true;
                 }
-            );
-            if (code) {
-                // QRコードを検出したら枠線描画
-                drawLine(
-                    code.location.topLeftCorner,
-                    code.location.topRightCorner
-                );
-                drawLine(
-                    code.location.topRightCorner,
-                    code.location.bottomRightCorner
-                );
-                drawLine(
-                    code.location.bottomRightCorner,
-                    code.location.bottomLeftCorner
-                );
-                drawLine(
-                    code.location.bottomLeftCorner,
-                    code.location.topLeftCorner
-                );
-                // callback
-                callback(code.data);
             }
         }
         requestAnimationFrame(tick);

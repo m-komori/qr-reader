@@ -4,7 +4,6 @@ import QRCodeScanner from "./components/QRCodeScanner";
 import { VIDEO_SIZE } from "./constants";
 import CodeList from "./components/CodeList";
 import LargeButton from "./components/LargeButton";
-import { useDisclosure } from "@chakra-ui/react";
 import AlertModal from "./components/AlertModal";
 
 function App() {
@@ -15,7 +14,7 @@ function App() {
     const timerId = useRef<number | null>(null);
     const codeHistoryRef = useRef<string[]>(codeHistory);
     const [cameraResume, setCameraResume] = useState<boolean>(false);
-    const { isOpen, onOpen, onClose } = useDisclosure();
+    const [dialogOpen, setDialogOpen] = useState(false);
 
     // 画面のアスペクト比を保持したプレビューのサイズを計算
     let previewWidth = Math.round(window.innerWidth * 0.6);
@@ -38,7 +37,7 @@ function App() {
     const detectionCode = (data: string) => {
         setScanning(false);
         if (codeHistoryRef.current.includes(data)) {
-            onOpen();
+            setDialogOpen(true);
         } else {
             setCodeHistory((prev) => [data, ...prev]);
             divRef.current?.scrollTo(0, 0);
@@ -136,7 +135,11 @@ function App() {
                     <CodeList codes={codeHistory} />
                 </div>
             </div>
-            <AlertModal onClose={onClose} isOpen={isOpen} title="エラー">
+            <AlertModal
+                onClose={(open) => setDialogOpen(open)}
+                isOpen={dialogOpen}
+                title="エラー"
+            >
                 すでに登録されています
             </AlertModal>
         </>

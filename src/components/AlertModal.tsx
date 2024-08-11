@@ -1,15 +1,7 @@
-import {
-    Modal,
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalFooter,
-    ModalBody,
-    Button,
-} from "@chakra-ui/react";
+import { Flex, Button, AlertDialog } from "@radix-ui/themes";
 
 type AlertModalProps = {
-    onClose: () => void;
+    onClose: (open: boolean) => void;
     isOpen: boolean;
     title: string;
     children: React.ReactNode;
@@ -17,16 +9,22 @@ type AlertModalProps = {
 
 const AlertModal = ({ onClose, isOpen, title, children }: AlertModalProps) => {
     return (
-        <Modal onClose={onClose} isOpen={isOpen} size="xs" isCentered>
-            <ModalOverlay />
-            <ModalContent>
-                <ModalHeader>{title}</ModalHeader>
-                <ModalBody>{children}</ModalBody>
-                <ModalFooter>
-                    <Button onClick={onClose}>OK</Button>
-                </ModalFooter>
-            </ModalContent>
-        </Modal>
+        <AlertDialog.Root open={isOpen} onOpenChange={onClose}>
+            <AlertDialog.Content maxWidth="450px">
+                <AlertDialog.Title>{title}</AlertDialog.Title>
+                <AlertDialog.Description size="2">
+                    {children}
+                </AlertDialog.Description>
+
+                <Flex gap="3" mt="4" justify="end">
+                    <AlertDialog.Action>
+                        <Button color="gray" variant="solid" className="w-16">
+                            OK
+                        </Button>
+                    </AlertDialog.Action>
+                </Flex>
+            </AlertDialog.Content>
+        </AlertDialog.Root>
     );
 };
 
